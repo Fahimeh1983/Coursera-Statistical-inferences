@@ -1,0 +1,123 @@
+---
+title: "Statistical inference with the GSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+Make sure your data and R Markdown files are in the same directory. When loaded
+your data file will be called `gss`. Delete this note when before you submit 
+your work. 
+
+```{r load-data}
+setwd("/Users/Fahimeh/work/Data-Science/Coursera")
+load("gss.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+We can assume that the response of each person is independent of another person. 
+
+* * *
+
+## Part 2: Research question
+Q1. Child of educated(after 12 grade) mothers are more likely to go to college?
+
+## Part 3: Exploratory data analysis
+
+```{r}
+# Lets define a new variable to call mother and child educated or not educated. 
+# We will consider a mother and a child educated if they go to college or higher
+
+gss1 <- gss %>%
+  mutate(childedu = ifelse(degree == "Junior College" | degree == "Bachelor" | degree == "Graduate", "educated_child", "noteducated_child")) %>% 
+  mutate(macol = ifelse(maeduc > 12, "educated_mother","noteducated_mother"))
+  
+educ_childof_educ_ma <- gss1 %>% 
+  filter(childedu == "educated_child", macol == "educated_mother") %>%
+  summarise(n())
+
+total_childof_educ_ma <- gss1 %>% 
+  filter(macol == "educated_mother") %>%
+  summarise(n())
+
+noteduc_childof_educ_ma <- gss1 %>% 
+  filter(childedu == "noteducated_child", macol == "educated_mother") %>%
+  summarise(n())
+
+total_childof_noteduc_ma <- gss1 %>% 
+  filter(macol == "noteducated_mother") %>%
+  summarise(n())
+
+P_hat_educ_childof_educ_ma <- educ_childof_educ_ma / (educ_childof_educ_ma + noteduc_childof_educ_ma)
+
+educ_childof_noteduc_ma <- gss1 %>% 
+  filter(childedu == "educated_child", macol == "noteducated_mother") %>%
+  summarise(n())
+
+noteduc_childof_noteduc_ma <- gss1 %>% 
+  filter(childedu == "noteducated_child", macol == "noteducated_mother") %>%
+  summarise(n())
+
+P_hat_educ_childof_noteduc_ma <- educ_childof_noteduc_ma / (educ_childof_noteduc_ma + noteduc_childof_noteduc_ma)
+
+# Proportion of educated child when mother is educated
+P_hat_educ_childof_educ_ma
+
+#Proportion of educated child when mother is not educated
+P_hat_educ_childof_noteduc_ma
+
+# Difference between these two proportion
+P_hat_educ_childof_educ_ma - P_hat_educ_childof_noteduc_ma
+```
+
+## Part 4: Inference
+
+There is a distinct difference in the proportion of educated when the mother is educated or not educated (We consider degrees after high school as a educated degree). But is it statistically significant? Lets do a hypthesis test:
+
+```{r}
+# H0 : P_hat_educ_childof_educ_ma = P_hat_educ_childof_noteduc_ma
+# HA : P_hat_educ_childof_educ_ma > P_hat_educ_childof_noteduc_ma
+# First lest compute the standard error 
+#SE = sqrt(p_pool * (1-p_pool)/ n1 + p_pool * (1-p_pool)/ n2)
+
+p_pool <- (educ_childof_educ_ma + educ_childof_noteduc_ma) / (total_childof_educ_ma + total_childof_noteduc_ma)
+SE <- sqrt( p_pool * (1 - p_pool) / total_childof_educ_ma + p_pool * (1 - p_pool) / total_childof_noteduc_ma) 
+
+(P_hat_educ_childof_educ_ma - P_hat_educ_childof_noteduc_ma) / SE
+pnorm (57.97559, lower.tail = FALSE)
+
+# An alternative way of doing it in R
+inference(childedu, macol, gss1, type = "ht", statistic = "proportion", success = "educated_child", method = "theoretical", null = 0, alternative = "greater")
+ 
+# Since p-value is small we reject the null hypothesis and we accept the alternative hypothesis 
+```
+We are 95 percent confident that the propotion of educated child from educated mothers are higher than not educated mothers. We can also define a confidence interval for the proportion difference:
+
+```{r}
+diff <- P_hat_educ_childof_educ_ma - P_hat_educ_childof_noteduc_ma
+c(diff + qnorm(0.975) * SE , diff - qnorm(0.975) * SE)
+
+# Or using R:
+inference(childedu, macol, gss1, type = "ci", statistic = "proportion", success = "educated_child", method = "theoretical")
+```
+
+We are 95% confidence that the proportion of educated child coming from educated mother is between 28 to 30 percent higher than educated child coming from not educated mother.
+
