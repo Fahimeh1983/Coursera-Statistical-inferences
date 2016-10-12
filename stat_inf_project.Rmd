@@ -45,10 +45,10 @@ Q1. Child of educated(after 12 grade) mothers are more likely to go to college?
 ```{r}
 # Lets define a new variable to call mother and child educated or not educated. 
 # We will consider a mother and a child educated if they go to college or higher
-
 gss1 <- gss %>%
   mutate(childedu = ifelse(degree == "Junior College" | degree == "Bachelor" | degree == "Graduate", "educated_child", "noteducated_child")) %>% 
-  mutate(macol = ifelse(maeduc > 12, "educated_mother","noteducated_mother"))
+  mutate(macol = ifelse(maeduc > 12, "educated_mother","noteducated_mother")) %>%
+  mutate(pacol = ifelse(paeduc > 12, "educated_father","noteducated_father"))
   
 educ_childof_educ_ma <- gss1 %>% 
   filter(childedu == "educated_child", macol == "educated_mother") %>%
@@ -120,4 +120,52 @@ inference(childedu, macol, gss1, type = "ci", statistic = "proportion", success 
 ```
 
 We are 95% confidence that the proportion of educated child coming from educated mother is between 28 to 30 percent higher than educated child coming from not educated mother.
+
+Q2. Are children of educated father more likely to go to college?
+
+```{r}
+educ_childof_educ_pa <- gss1 %>% 
+  filter(childedu == "educated_child", pacol == "educated_father") %>%
+  summarise(n())
+
+total_childof_educ_pa <- gss1 %>% 
+  filter(pacol == "educated_father") %>%
+  summarise(n())
+
+noteduc_childof_educ_pa <- gss1 %>% 
+  filter(childedu == "noteducated_child", pacol == "educated_father") %>%
+  summarise(n())
+
+total_childof_noteduc_pa <- gss1 %>% 
+  filter(pacol == "noteducated_father") %>%
+  summarise(n())
+
+P_hat_educ_childof_educ_pa <- educ_childof_educ_pa / (educ_childof_educ_pa + noteduc_childof_educ_pa)
+
+educ_childof_noteduc_pa <- gss1 %>% 
+  filter(childedu == "educated_child", pacol == "noteducated_father") %>%
+  summarise(n())
+
+noteduc_childof_noteduc_pa <- gss1 %>% 
+  filter(childedu == "noteducated_child", pacol == "noteducated_father") %>%
+  summarise(n())
+
+P_hat_educ_childof_noteduc_pa <- educ_childof_noteduc_pa / (educ_childof_noteduc_pa + noteduc_childof_noteduc_pa)
+
+# Proportion of educated child when mother is educated
+P_hat_educ_childof_educ_pa
+
+#Proportion of educated child when mother is not educated
+P_hat_educ_childof_noteduc_pa
+
+# Difference between these two proportion
+P_hat_educ_childof_educ_pa - P_hat_educ_childof_noteduc_pa
+
+inference(childedu, pacol, gss1, type = "ht", statistic = "proportion", success = "educated_child", method = "theoretical", null = 0, alternative = "greater")
+
+inference(childedu, pacol, gss1, type = "ci", statistic = "proportion", success = "educated_child", method = "theoretical")
+```
+
+With 95% confidence, the propotion of educated children of educated fathers are 0.31 to 0.34 more than the propotion of not educated fathers.
+
 
